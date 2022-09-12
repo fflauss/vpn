@@ -1,0 +1,102 @@
+#!/bin/bash
+
+PATH="/bin:/usr/bin:/usr/ucb:/usr/opt/bin"
+
+export $PATH
+
+ID="1.3.6.1.4.1.12356.101.12.2.4.1.1"
+IP="1.3.6.1.4.1.12356.101.12.2.4.1.5"
+USER="1.3.6.1.4.1.12356.101.12.2.4.1.3"
+UPTIME="1.3.6.1.4.1.12356.101.12.2.4.1.6"
+ALL="1.3.6.1.4.1.12356.101.12.2.3.1.6.1"
+COMMUNITY="public"
+DST="A.B.C.D"
+
+echo "Content-type: text/html"
+echo ""
+echo '<html>'
+echo '<head>'
+echo '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
+echo '<meta http-equiv="refresh" content="120">'
+echo '<style>'
+echo '.header {padding: 18px; text-align: center; background: #032051; color: white; font-size: 15px;}'
+echo 'table { border-spacing: 0; width: 60%; margin-top: 25px; margin-left: 20%; margin-right: 20%; }'
+echo 'thead td { text-align: left; padding: 8px; color: white;}'
+echo 'tr:nth-child(even){background-color: #f2f2f2}'
+echo 'thead { background-color: #032051; font-weight: bold;}'
+echo 'td { color: #032051; padding: 6px; }'
+#echo '.bordered { border: solid #ccc 1px; -moz-border-radius: 20px; -webkit-border-radius: 20px; border-radius: 20px; -webkit-box-shadow: 0 3px 3px #ccc;  -moz-box-shadow: 0 3px 3px #ccc;  box-shadow: 0 3px 3px #ccc; }'
+
+echo '</style>'
+echo '</head>'
+echo '<body>'
+
+declare RESULT=()
+while read -r LINE; do
+    RESULT[${#RESULT[@]}]=$LINE
+done < <(snmpwalk -v2c -c ${COMMUNITY} ${DST} ${ID} | cut -f4 -d" ")
+
+echo '<title>Activites VPN</title>'
+echo '<div class="header">'
+echo '<h1>Monitoring des connexions VPN</h1>'
+echo '<p>'
+echo 'Nombre Utilisateurs :'
+echo "`snmpwalk -v2c -c ${COMMUNITY} ${DST} ${ALL} | cut -f4 -d" "`"
+echo '</p>'
+echo '</div>'
+echo '<table class="bordered">'
+echo '<thead>'
+echo '<tr>'
+echo '<td>'
+echo 'Adresse IP'
+echo '</td>'
+echo '<td>'
+echo 'Utilisateur'
+echo '</td>'
+echo '<td>'
+echo 'Durée de connexion'
+echo '</td>'
+echo '</tr>'
+echo '</thead>'
+for i in "${RESULT[@]}"; 
+do
+echo '<tr>'
+echo '<td>'
+echo "`snmpwalk -v2c -c ${COMMUNITY} ${DST} ${IP}.$i | cut -f4 -d" "`"
+echo '</td>'
+echo '<td>'
+echo "`snmpwalk -v2c -c ${COMMUNITY} ${DST} ${USER}.$i | cut -f4 -d" " | tr -d '"'`";
+echo '</td>'
+function show_time () {
+    num=`snmpwalk -v2c -c ${COMMUNITY} ${DST} ${UPTIME}.$i | cut -f4 -d" "`
+    min=0
+    hour=0
+    day=0
+    if((num>59));then
+        ((sec=num%60))
+        ((num=num/60))
+        if((num>59));then
+            ((min=num%60))
+            ((num=num/60))
+            if((num>23));then
+                ((hour=num%24))
+                ((day=num/24))
+            else
+                ((hour=num))
+            fi
+        else
+            ((min=num))
+        fi
+    else
+        ((sec=num))
+    fi
+    echo "$day"d "$hour"h "$min"m "$sec"s
+}
+echo '<td>'
+show_time
+echo '</td>'
+echo '</tr>'
+done
+echo '</table>'
+echo '</body>'
+echo '</html>'
